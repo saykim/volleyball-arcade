@@ -1,0 +1,371 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+
+export type Language = "ko" | "en";
+
+export const LANGUAGE_STORAGE_KEY = "volleyArcade.language";
+
+export const MESSAGES = {
+  ko: {
+    "app.headerTag": "배구 통계 PWA",
+    "app.title": "Volley Arcade",
+    "nav.home": "홈",
+    "nav.team": "팀",
+    "nav.sessions": "세션",
+    "nav.insights": "인사이트",
+    "nav.playMode": "Play Mode",
+    "nav.help": "도움말",
+    "nav.board": "포지션 보드",
+    "lang.kr": "KR",
+    "lang.en": "EN",
+    "lang.switch": "언어",
+    "home.title": "경기 후 통계 허브",
+    "home.subtitle": "세션을 기록하고 이벤트 통계를 입력해 선수별 미션을 휴대폰으로 바로 보여주세요.",
+    "home.teamRoster": "팀 + 로스터",
+    "home.sessionsEvents": "세션 + 이벤트",
+    "home.insights": "인사이트",
+    "home.playMode": "Play Mode",
+    "home.help": "사용 가이드",
+    "home.board": "포지션 보드",
+    "team.title": "팀 + 로스터",
+    "team.newTeamPlaceholder": "새 팀 이름",
+    "team.add": "추가",
+    "team.playerNamePlaceholder": "선수 이름",
+    "team.jerseyPlaceholder": "등번호",
+    "team.addPlayer": "선수 추가",
+    "team.sessionScopeLabel": "카드 앞면 통계 세션 범위",
+    "team.sessionScopeAll": "전체 세션",
+    "team.selectorLabel": "팀",
+    "team.empty": "통계를 시작하려면 팀을 먼저 만들어 주세요.",
+    "position.setter": "세터",
+    "position.outside": "아웃사이드",
+    "position.middle": "미들",
+    "position.opposite": "라이트",
+    "position.libero": "리베로",
+    "sessions.title": "세션",
+    "sessions.create": "세션 생성",
+    "sessions.opponentPlaceholder": "상대팀 (선택)",
+    "sessions.usScorePlaceholder": "우리 점수",
+    "sessions.themScorePlaceholder": "상대 점수",
+    "sessions.setScoresPlaceholder": '세트 스코어 (예: "25-18, 23-25")',
+    "sessions.notesPlaceholder": "메모",
+    "sessions.editNotes": "메모 수정",
+    "sessions.score": "점수",
+    "sessions.sets": "세트",
+    "sessions.delete": "삭제",
+    "sessions.eventsTitle": "이벤트",
+    "sessions.selectedSession": "선택된 세션",
+    "sessions.none": "없음",
+    "sessions.selectPlayer": "선수 선택",
+    "sessions.quickNote": "짧은 메모",
+    "sessions.addEvent": "이벤트 추가",
+    "sessions.updateEvent": "이벤트 수정",
+    "sessions.quickAddTitle": "빠른 추가 (터치 친화)",
+    "sessions.quickAddDesc": "선수를 선택하고 +1 버튼을 누르세요. 경기 후 입력을 빠르게 끝낼 수 있습니다.",
+    "sessions.servePlus": "+ 서브+",
+    "sessions.spikePlus": "+ 공격+",
+    "sessions.errorPlus": "+ 실수",
+    "sessions.unknown": "알 수 없음",
+    "sessions.edit": "수정",
+    "sessions.del": "삭제",
+    "sessions.promptUpdateNotes": "메모 수정",
+    "sessions.promptUpdateScore": "점수 수정 (형식: 우리-상대). 예: 25-18",
+    "sessions.invalidScore": "형식이 올바르지 않습니다. 우리-상대 형식(예: 25-18)을 사용하세요.",
+    "sessions.promptUpdateSets": "세트 스코어 수정 (예: 25-18, 23-25, 15-13)",
+    "insights.title": "인사이트",
+    "insights.sessions": "세션",
+    "insights.positive": "긍정",
+    "insights.errors": "실수",
+    "insights.strength": "강점",
+    "insights.focus": "집중 포인트",
+    "insights.tip": "팁",
+    "playerMode.title": "Play Mode",
+    "playerMode.session": "세션",
+    "playerMode.player": "선수",
+    "playerMode.noPlayer": "선수 없음",
+    "playerMode.servePlus": "서브+",
+    "playerMode.spikePlus": "공격+",
+    "playerMode.receivePlus": "리시브+",
+    "playerMode.errors": "실수",
+    "playerMode.tip": "팁",
+    "flip.aria": "{name} 카드 뒤집기",
+    "flip.detailStats": "상세 통계",
+    "flip.servePlus": "서브+",
+    "flip.spikePlus": "공격+",
+    "flip.receivePlus": "리시브+",
+    "flip.blockPlus": "블록+",
+    "flip.total": "총 이벤트",
+    "flip.errors": "실수",
+    "flip.tip": "팁",
+    "help.title": "사용 매뉴얼",
+    "help.subtitle": "모바일 기준으로 빠르게 팀 운영을 시작하는 방법",
+    "help.sectionTeamTitle": "1) 팀 만들기",
+    "help.sectionTeamBody": "팀 탭에서 팀 이름을 추가하고 기본 팀을 선택하세요. 팀별로 선수/세션/보드가 분리됩니다.",
+    "help.sectionPlayersTitle": "2) 선수 등록",
+    "help.sectionPlayersBody": "선수 이름, 등번호, 포지션을 입력해 로스터를 구성하세요. 같은 팀 내 등번호는 중복되지 않습니다.",
+    "help.sectionSessionTitle": "3) 세션 생성",
+    "help.sectionSessionBody": "세션 탭에서 경기/연습, 날짜, 상대팀, 점수, 세트 스코어를 기록하세요.",
+    "help.sectionQuickTitle": "4) Quick add로 통계 입력",
+    "help.sectionQuickBody": "이벤트 폼으로 상세 입력하거나 Quick add 버튼으로 서브+, 공격+, 실수를 빠르게 누적하세요.",
+    "help.sectionPlayTitle": "5) Play Mode로 선수에게 보여주기",
+    "help.sectionPlayBody": "Play Mode에서 세션과 선수를 선택하면 핵심 수치와 오늘의 팁/미션을 크게 표시할 수 있습니다.",
+    "help.sectionPrivacyTitle": "6) 개인정보/오프라인",
+    "help.sectionPrivacyBody": "모든 데이터는 이 기기의 브라우저(IndexedDB)에만 저장됩니다. 서버 전송 없이 오프라인에서도 동작합니다.",
+    "board.title": "포지션 보드",
+    "board.team": "팀",
+    "board.session": "세션",
+    "board.emptySessions": "선택한 팀에 세션이 없습니다. 먼저 세션을 만들어 주세요.",
+    "board.rosterTitle": "로스터 토큰",
+    "board.unassigned": "미배치",
+    "board.courtTitle": "코트 (1-6)",
+    "board.slot": "포지션 {slot}",
+    "board.reset": "리셋",
+    "board.remove": "빼기",
+    "board.dragHint": "데스크톱: 토큰을 드래그해서 포지션에 놓으세요.",
+    "board.tapHint": "모바일: 토큰을 탭한 뒤 포지션을 탭해 배치하세요.",
+    "board.armedHint": "선택됨: #{jersey} {name}. 포지션을 탭해 배치합니다.",
+    "sessionKind.match": "경기",
+    "sessionKind.practice": "연습",
+    "eventType.serve": "서브",
+    "eventType.receive": "리시브",
+    "eventType.spike": "공격",
+    "eventType.block": "블록",
+    "eventType.error": "실수",
+    "eventOutcome.success": "성공",
+    "eventOutcome.error": "실패",
+    "insight.strength.servingPressure": "서브 압박이 팀의 강력한 무기가 되고 있어요.",
+    "insight.strength.firstTouch": "첫 터치가 안정적이라 공격 전개가 좋아요.",
+    "insight.strength.attackChoices": "공격 선택이 효과적으로 이어지고 있어요.",
+    "insight.strength.netTiming": "네트 타이밍이 좋고 득점 기회를 만들고 있어요.",
+    "insight.strength.default": "꾸준한 허슬과 소통이 돋보입니다.",
+    "insight.weakness.errors": "중요한 순간의 범실이 많아요.",
+    "insight.weakness.receive": "공격 시작을 위한 안정적인 리시브가 더 필요해요.",
+    "insight.weakness.spike": "이번 세션에서 공격 결정력이 낮아요.",
+    "insight.weakness.default": "긴 랠리에서도 일관성을 유지해 보세요.",
+    "insight.tip.default": "컨택 전 시야를 먼저 확보하고 빠르게 콜해서 혼선을 줄이세요.",
+    "insight.tip.errors": "랠리마다 심호흡으로 리셋하고 한 가지 단서에만 집중하세요.",
+    "insight.tip.spike": "공격 각도를 계속 섞어 상대 수비를 흔드세요.",
+    "insight.tip.receive": "첫 터치에서 자세를 낮추고 플랫폼 각도를 일정하게 유지하세요.",
+    "insight.mission.errors": "미션: 다음 세트에서 성급한 플레이 0회.",
+    "insight.mission.calls": "미션: 모든 공에 큰 소리로 콜하기.",
+    "insight.mission.target": "미션: 약한 리시버를 3회 연속 공략하기.",
+    "insight.mission.controlled": "미션: 컨트롤 서브 5개 연속 성공하기.",
+  },
+  en: {
+    "app.headerTag": "Volleyball Stats PWA",
+    "app.title": "Volley Arcade",
+    "nav.home": "Home",
+    "nav.team": "Team",
+    "nav.sessions": "Sessions",
+    "nav.insights": "Insights",
+    "nav.playMode": "Play Mode",
+    "nav.help": "Help",
+    "nav.board": "Board",
+    "lang.kr": "KR",
+    "lang.en": "EN",
+    "lang.switch": "Language",
+    "home.title": "Post-Match Stat Hub",
+    "home.subtitle": "Track sessions, add event stats, and show each player clear missions from your phone.",
+    "home.teamRoster": "Team + Roster",
+    "home.sessionsEvents": "Sessions + Events",
+    "home.insights": "Insights",
+    "home.playMode": "Play Mode",
+    "home.help": "Usage Manual",
+    "home.board": "Position Board",
+    "team.title": "Team + Roster",
+    "team.newTeamPlaceholder": "New team name",
+    "team.add": "Add",
+    "team.playerNamePlaceholder": "Player name",
+    "team.jerseyPlaceholder": "Jersey #",
+    "team.addPlayer": "Add Player",
+    "team.sessionScopeLabel": "Session scope for card front stats",
+    "team.sessionScopeAll": "All sessions",
+    "team.selectorLabel": "Team",
+    "team.empty": "Create a team to start tracking stats.",
+    "position.setter": "Setter",
+    "position.outside": "Outside",
+    "position.middle": "Middle",
+    "position.opposite": "Opposite",
+    "position.libero": "Libero",
+    "sessions.title": "Sessions",
+    "sessions.create": "Create Session",
+    "sessions.opponentPlaceholder": "Opponent (optional)",
+    "sessions.usScorePlaceholder": "Us score",
+    "sessions.themScorePlaceholder": "Them score",
+    "sessions.setScoresPlaceholder": 'Set scores (e.g. "25-18, 23-25")',
+    "sessions.notesPlaceholder": "Notes",
+    "sessions.editNotes": "Edit notes",
+    "sessions.score": "Score",
+    "sessions.sets": "Sets",
+    "sessions.delete": "Delete",
+    "sessions.eventsTitle": "Events",
+    "sessions.selectedSession": "Selected session",
+    "sessions.none": "none",
+    "sessions.selectPlayer": "Select player",
+    "sessions.quickNote": "Quick note",
+    "sessions.addEvent": "Add event",
+    "sessions.updateEvent": "Update event",
+    "sessions.quickAddTitle": "Quick add (tap-friendly)",
+    "sessions.quickAddDesc": "Pick a player and tap +1. This is the easy mode for post-game entry.",
+    "sessions.servePlus": "+ Serve+",
+    "sessions.spikePlus": "+ Spike+",
+    "sessions.errorPlus": "+ Error",
+    "sessions.unknown": "Unknown",
+    "sessions.edit": "Edit",
+    "sessions.del": "Del",
+    "sessions.promptUpdateNotes": "Update notes",
+    "sessions.promptUpdateScore": "Update score (format: us-them). Example: 25-18",
+    "sessions.invalidScore": "Invalid format. Use us-them (e.g. 25-18).",
+    "sessions.promptUpdateSets": "Update set scores (e.g. 25-18, 23-25, 15-13)",
+    "insights.title": "Insights",
+    "insights.sessions": "Sessions",
+    "insights.positive": "Positive",
+    "insights.errors": "Errors",
+    "insights.strength": "Strength",
+    "insights.focus": "Focus",
+    "insights.tip": "Tip",
+    "playerMode.title": "Play Mode",
+    "playerMode.session": "Session",
+    "playerMode.player": "Player",
+    "playerMode.noPlayer": "No player",
+    "playerMode.servePlus": "Serve+",
+    "playerMode.spikePlus": "Spike+",
+    "playerMode.receivePlus": "Receive+",
+    "playerMode.errors": "Errors",
+    "playerMode.tip": "Tip",
+    "flip.aria": "Flip {name} card",
+    "flip.detailStats": "Detail Stats",
+    "flip.servePlus": "Serve+",
+    "flip.spikePlus": "Spike+",
+    "flip.receivePlus": "Receive+",
+    "flip.blockPlus": "Block+",
+    "flip.total": "Total",
+    "flip.errors": "Errors",
+    "flip.tip": "Tip",
+    "help.title": "Usage Manual",
+    "help.subtitle": "Mobile-first guide to run your team flow quickly",
+    "help.sectionTeamTitle": "1) Create a Team",
+    "help.sectionTeamBody": "In Team, add a team name and pick the active team. Players, sessions, and board layouts are separated per team.",
+    "help.sectionPlayersTitle": "2) Add Players",
+    "help.sectionPlayersBody": "Add each player with name, jersey number, and position. Jersey numbers are unique within the same team.",
+    "help.sectionSessionTitle": "3) Create Sessions",
+    "help.sectionSessionBody": "In Sessions, log match/practice type, date, opponent, score, and set scores.",
+    "help.sectionQuickTitle": "4) Enter stats with Quick add",
+    "help.sectionQuickBody": "Use the event form for details, or tap Quick add buttons to accumulate Serve+, Spike+, and Error events fast.",
+    "help.sectionPlayTitle": "5) Show players in Play Mode",
+    "help.sectionPlayBody": "In Play Mode, choose a session and player to present key stats and today’s tips/missions in large text.",
+    "help.sectionPrivacyTitle": "6) Privacy and Offline",
+    "help.sectionPrivacyBody": "All data stays in this browser (IndexedDB). Nothing is sent to a server, and the app works offline.",
+    "board.title": "Position Board",
+    "board.team": "Team",
+    "board.session": "Session",
+    "board.emptySessions": "No sessions for this team yet. Create a session first.",
+    "board.rosterTitle": "Roster Tokens",
+    "board.unassigned": "Unassigned",
+    "board.courtTitle": "Court (1-6)",
+    "board.slot": "Slot {slot}",
+    "board.reset": "Reset",
+    "board.remove": "Remove",
+    "board.dragHint": "Desktop: drag a token onto a slot.",
+    "board.tapHint": "Mobile: tap a token, then tap a slot to assign.",
+    "board.armedHint": "Selected: #{jersey} {name}. Tap a slot to assign.",
+    "sessionKind.match": "Match",
+    "sessionKind.practice": "Practice",
+    "eventType.serve": "Serve",
+    "eventType.receive": "Receive",
+    "eventType.spike": "Spike",
+    "eventType.block": "Block",
+    "eventType.error": "Error",
+    "eventOutcome.success": "Success",
+    "eventOutcome.error": "Error",
+    "insight.strength.servingPressure": "Serving pressure is a team weapon.",
+    "insight.strength.firstTouch": "First touch keeps offense stable.",
+    "insight.strength.attackChoices": "Attacking choices are paying off.",
+    "insight.strength.netTiming": "Net timing is creating stops.",
+    "insight.strength.default": "Steady hustle and communication stand out.",
+    "insight.weakness.errors": "Too many unforced mistakes in key moments.",
+    "insight.weakness.receive": "Need more clean receives to start offense.",
+    "insight.weakness.spike": "Attack conversion is low this session.",
+    "insight.weakness.default": "Keep consistency through long rallies.",
+    "insight.tip.default": "Eyes up before contact and call early to reduce confusion.",
+    "insight.tip.errors": "Reset after every rally: deep breath, then focus on one simple cue.",
+    "insight.tip.spike": "Keep mixing attack angles; your variation is creating space.",
+    "insight.tip.receive": "Stay low on first contact and keep platform angle stable.",
+    "insight.mission.errors": "Mission: 0 rushed plays in the next set.",
+    "insight.mission.calls": "Mission: call every ball loudly.",
+    "insight.mission.target": "Mission: target weak receiver 3 times in a row.",
+    "insight.mission.controlled": "Mission: hit 5 controlled serves in a row.",
+  },
+} as const;
+
+export type MessageKey = keyof (typeof MESSAGES)["ko"];
+
+type Interpolation = Record<string, string | number>;
+
+interface I18nValue {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: MessageKey, interpolation?: Interpolation) => string;
+}
+
+const I18nContext = createContext<I18nValue | null>(null);
+
+function interpolate(template: string, interpolation?: Interpolation): string {
+  if (!interpolation) {
+    return template;
+  }
+
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(interpolation[key] ?? `{${key}}`));
+}
+
+function isLanguage(value: string | null): value is Language {
+  return value === "ko" || value === "en";
+}
+
+function translate(language: Language, key: MessageKey, interpolation?: Interpolation): string {
+  const source = MESSAGES[language][key] ?? MESSAGES.ko[key] ?? key;
+  return interpolate(source, interpolation);
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguage] = useState<Language>(() => {
+    if (typeof window === "undefined") {
+      return "ko";
+    }
+
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isLanguage(stored) ? stored : "ko";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    document.documentElement.lang = language;
+  }, [language]);
+
+  const t = useCallback(
+    (key: MessageKey, interpolation?: Interpolation) => {
+      return translate(language, key, interpolation);
+    },
+    [language],
+  );
+
+  const value = useMemo(
+    () => ({
+      language,
+      setLanguage,
+      t,
+    }),
+    [language, t],
+  );
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n(): I18nValue {
+  const value = useContext(I18nContext);
+  if (!value) {
+    throw new Error("useI18n must be used within I18nProvider");
+  }
+  return value;
+}
