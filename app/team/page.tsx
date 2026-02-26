@@ -17,6 +17,8 @@ import {
 } from "@/lib/db";
 import type { Player, PlayerStats, Session, StatEvent, Team } from "@/lib/domain";
 import { useI18n } from "@/lib/i18n";
+import { hasPermission } from "@/lib/permissions";
+import { useRole } from "@/lib/role-context";
 import { buildPlayerInsight, computePlayerStats, EMPTY_PLAYER_STATS } from "@/lib/stats";
 
 const POSITION_LABEL_KEYS = {
@@ -46,6 +48,7 @@ const EMPTY_PLAYER_DRAFT: PlayerDraft = {
 
 export default function TeamPage() {
   const { t } = useI18n();
+  const { role } = useRole();
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -136,9 +139,15 @@ export default function TeamPage() {
     });
     return map;
   }, [events, players]);
+  const canCreateTeam = hasPermission(role, "team.create");
+  const canCreatePlayer = hasPermission(role, "player.create");
 
   async function handleCreateTeam(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canCreateTeam) {
+      window.alert(t("auth.denied"));
+      return;
+    }
     if (!teamName.trim()) return;
     await createTeam(teamName);
     setTeamName("");
@@ -147,6 +156,10 @@ export default function TeamPage() {
 
   async function handleCreatePlayer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canCreatePlayer) {
+      window.alert(t("auth.denied"));
+      return;
+    }
     if (selectedTeamId === null) return;
 
     await createPlayer({
@@ -171,8 +184,9 @@ export default function TeamPage() {
             placeholder={t("team.newTeamPlaceholder")}
             value={teamName}
             onChange={(event) => setTeamName(event.target.value)}
+            disabled={!canCreateTeam}
           />
-          <button className="pixel-btn" type="submit">
+          <button className="pixel-btn" type="submit" disabled={!canCreateTeam}>
             {t("team.add")}
           </button>
         </form>
@@ -194,6 +208,7 @@ export default function TeamPage() {
             value={playerDraft.displayName}
             onChange={(event) => setPlayerDraft((prev) => ({ ...prev, displayName: event.target.value }))}
             required
+            disabled={!canCreatePlayer}
           />
           <input
             className="pixel-input"
@@ -202,6 +217,7 @@ export default function TeamPage() {
             value={playerDraft.jerseyNumber}
             onChange={(event) => setPlayerDraft((prev) => ({ ...prev, jerseyNumber: event.target.value }))}
             required
+            disabled={!canCreatePlayer}
           />
           <select
             className="pixel-input"
@@ -209,6 +225,7 @@ export default function TeamPage() {
             onChange={(event) =>
               setPlayerDraft((prev) => ({ ...prev, position: event.target.value as Player["position"] }))
             }
+            disabled={!canCreatePlayer}
           >
             {PLAYER_POSITIONS.map((position) => (
               <option key={position} value={position}>
@@ -216,7 +233,7 @@ export default function TeamPage() {
               </option>
             ))}
           </select>
-          <button className="pixel-btn sm:col-span-4" type="submit" disabled={selectedTeamId === null}>
+          <button className="pixel-btn sm:col-span-4" type="submit" disabled={selectedTeamId === null || !canCreatePlayer}>
             {t("team.addPlayer")}
           </button>
         </form>

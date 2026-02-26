@@ -3,9 +3,22 @@
 import Link from "next/link";
 
 import { useI18n } from "@/lib/i18n";
+import { canAccessRoute } from "@/lib/permissions";
+import { useRole } from "@/lib/role-context";
+
+const HOME_LINKS = [
+  { href: "/team", labelKey: "home.teamRoster" },
+  { href: "/sessions", labelKey: "home.sessionsEvents" },
+  { href: "/insights", labelKey: "home.insights" },
+  { href: "/player-mode", labelKey: "home.playMode" },
+  { href: "/board", labelKey: "home.board" },
+  { href: "/help", labelKey: "home.help" },
+] as const;
 
 export default function Home() {
   const { t } = useI18n();
+  const { role } = useRole();
+  const visibleLinks = HOME_LINKS.filter((link) => canAccessRoute(role, link.href).allowed);
 
   return (
     <section className="space-y-4">
@@ -15,24 +28,11 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Link className="pixel-panel text-center font-black uppercase" href="/team">
-          {t("home.teamRoster")}
-        </Link>
-        <Link className="pixel-panel text-center font-black uppercase" href="/sessions">
-          {t("home.sessionsEvents")}
-        </Link>
-        <Link className="pixel-panel text-center font-black uppercase" href="/insights">
-          {t("home.insights")}
-        </Link>
-        <Link className="pixel-panel text-center font-black uppercase" href="/player-mode">
-          {t("home.playMode")}
-        </Link>
-        <Link className="pixel-panel text-center font-black uppercase" href="/board">
-          {t("home.board")}
-        </Link>
-        <Link className="pixel-panel text-center font-black uppercase" href="/help">
-          {t("home.help")}
-        </Link>
+        {visibleLinks.map((item) => (
+          <Link key={item.href} className="pixel-panel text-center font-black uppercase" href={item.href}>
+            {t(item.labelKey)}
+          </Link>
+        ))}
       </div>
     </section>
   );

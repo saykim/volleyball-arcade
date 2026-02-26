@@ -6,7 +6,8 @@ import { assignPlayerToSlot, BOARD_SLOT_COUNT, removePlayerFromSlot } from "@/li
 import { getBoardState, listPlayers, listSessions, listTeams, resetBoardState, upsertBoardState } from "@/lib/db";
 import type { Player, Session, Team } from "@/lib/domain";
 import { useI18n } from "@/lib/i18n";
-import { confirmBoardReset, getStoredRole, hasPermission } from "@/lib/permissions";
+import { confirmBoardReset, hasPermission } from "@/lib/permissions";
+import { useRole } from "@/lib/role-context";
 
 const SESSION_KIND_LABEL_KEYS = {
   match: "sessionKind.match",
@@ -15,6 +16,7 @@ const SESSION_KIND_LABEL_KEYS = {
 
 export default function BoardPage() {
   const { t } = useI18n();
+  const { role } = useRole();
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -60,7 +62,7 @@ export default function BoardPage() {
 
   const assignedIds = useMemo(() => new Set(assignments.filter((value): value is number => typeof value === "number")), [assignments]);
   const unassignedPlayers = useMemo(() => players.filter((player) => (player.id ? !assignedIds.has(player.id) : true)), [assignedIds, players]);
-  const role = useMemo(() => getStoredRole(), []);
+  const canAssignBoard = hasPermission(role, "board.assign");
   const canResetBoard = hasPermission(role, "board.reset");
 
   function findPlayer(playerId: number | null): Player | undefined {
@@ -68,6 +70,11 @@ export default function BoardPage() {
   }
 
   async function persist(nextAssignments: Array<number | null>): Promise<void> {
+    if (!canAssignBoard) {
+      window.alert(t("auth.denied"));
+      return;
+    }
+
     if (!selectedTeamId || !selectedSessionId) {
       return;
     }
@@ -180,25 +187,33 @@ export default function BoardPage() {
 
         <div className="flex flex-wrap gap-2">
           {unassignedPlayers.map((player) => (
-            <button
-              key={player.id}
-              type="button"
-              draggable={Boolean(player.id && selectedSessionId && selectedTeamId)}
-              onDragStart={(event) => {
-                if (!player.id) {
-                  return;
-                }
+              <button
+                key={player.id}
+                type="button"
+                draggable={Boolean(canAssignBoard && player.id && selectedSessionId && selectedTeamId)}
+                onDragStart={(event) => {
+                  if (!canAssignBoard) {
+                    return;
+                  }
+                  if (!player.id) {
+                    return;
+                  }
                 event.dataTransfer.setData("text/plain", String(player.id));
               }}
-              onClick={() => {
-                const playerId = player.id;
-                if (!playerId) {
-                  return;
+                onClick={() => {
+                  if (!canAssignBoard) {
+                    window.alert(t("auth.denied"));
+                    return;
+                  }
+                  const playerId = player.id;
+                  if (!playerId) {
+                    return;
                 }
                 setArmedPlayerId((current) => (current === playerId ? null : playerId));
               }}
-              className={`border-2 border-black px-2 py-1 text-xs font-black ${armedPlayerId === player.id ? "bg-[var(--accent)]" : "bg-white"}`}
-            >
+                className={`border-2 border-black px-2 py-1 text-xs font-black ${armedPlayerId === player.id ? "bg-[var(--accent)]" : "bg-white"}`}
+                disabled={!canAssignBoard}
+              >
               #{player.jerseyNumber} {player.displayName}
             </button>
           ))}
@@ -219,6 +234,10 @@ export default function BoardPage() {
                 className="min-h-24 border-4 border-black bg-white p-2 text-left"
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={async (event) => {
+                  if (!canAssignBoard) {
+                    window.alert(t("auth.denied"));
+                    return;
+                  }
                   if (!selectedSessionId || !selectedTeamId) {
                     return;
                   }
@@ -230,6 +249,10 @@ export default function BoardPage() {
                   await assign(slotIndex, droppedPlayerId);
                 }}
                 onClick={async () => {
+                  if (!canAssignBoard) {
+                    window.alert(t("auth.denied"));
+                    return;
+                  }
                   if (armedPlayerId) {
                     await assign(slotIndex, armedPlayerId);
                     return;

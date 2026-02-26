@@ -18,6 +18,8 @@ import {
 } from "@/lib/db";
 import type { Player, Session, StatEvent, Team } from "@/lib/domain";
 import { useI18n } from "@/lib/i18n";
+import { hasPermission } from "@/lib/permissions";
+import { useRole } from "@/lib/role-context";
 
 const SESSION_KIND_LABEL_KEYS = {
   match: "sessionKind.match",
@@ -73,6 +75,7 @@ const EMPTY_EVENT_DRAFT: EventDraft = {
 
 export default function SessionsPage() {
   const { t } = useI18n();
+  const { role } = useRole();
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -85,6 +88,16 @@ export default function SessionsPage() {
 
   const [sessionDraft, setSessionDraft] = useState<SessionDraft>(EMPTY_SESSION_DRAFT);
   const [eventDraft, setEventDraft] = useState<EventDraft>(EMPTY_EVENT_DRAFT);
+  const canCreateSession = hasPermission(role, "session.create");
+  const canEditSession = hasPermission(role, "session.edit");
+  const canDeleteSession = hasPermission(role, "session.delete");
+  const canCreateEvent = hasPermission(role, "event.create");
+  const canEditEvent = hasPermission(role, "event.edit");
+  const canDeleteEvent = hasPermission(role, "event.delete");
+
+  function deny(): void {
+    window.alert(t("auth.denied"));
+  }
 
   const refreshTeams = useCallback(async () => {
     const nextTeams = await listTeams();
@@ -143,6 +156,10 @@ export default function SessionsPage() {
 
   async function handleCreateSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canCreateSession) {
+      deny();
+      return;
+    }
     if (selectedTeamId === null) return;
 
     const sessionId = await createSession({
@@ -162,6 +179,10 @@ export default function SessionsPage() {
   }
 
   async function handleSaveSession(sessionId: number, original: Session) {
+    if (!canEditSession) {
+      deny();
+      return;
+    }
     await updateSession(sessionId, {
       kind: original.kind,
       date: original.date,
@@ -181,6 +202,10 @@ export default function SessionsPage() {
     if (selectedTeamId === null || selectedSessionId === null || !eventDraft.playerId) return;
 
     if (editingEventId) {
+      if (!canEditEvent) {
+        deny();
+        return;
+      }
       await updateEvent(editingEventId, {
         playerId: Number(eventDraft.playerId),
         type: eventDraft.type,
@@ -189,6 +214,10 @@ export default function SessionsPage() {
       });
       setEditingEventId(null);
     } else {
+      if (!canCreateEvent) {
+        deny();
+        return;
+      }
       await createEvent({
         teamId: selectedTeamId,
         sessionId: selectedSessionId,
@@ -225,6 +254,7 @@ export default function SessionsPage() {
             onChange={(event) =>
               setSessionDraft((prev) => ({ ...prev, kind: event.target.value as Session["kind"] }))
             }
+            disabled={!canCreateSession}
           >
             {SESSION_KINDS.map((kind) => (
               <option key={kind} value={kind}>
@@ -237,12 +267,14 @@ export default function SessionsPage() {
             type="date"
             value={sessionDraft.date}
             onChange={(event) => setSessionDraft((prev) => ({ ...prev, date: event.target.value }))}
+            disabled={!canCreateSession}
           />
           <input
             className="pixel-input"
             placeholder={t("sessions.opponentPlaceholder")}
             value={sessionDraft.opponent}
             onChange={(event) => setSessionDraft((prev) => ({ ...prev, opponent: event.target.value }))}
+            disabled={!canCreateSession}
           />
 
           <div className="grid grid-cols-2 gap-2">
@@ -252,6 +284,7 @@ export default function SessionsPage() {
               inputMode="numeric"
               value={sessionDraft.scoreUs}
               onChange={(event) => setSessionDraft((prev) => ({ ...prev, scoreUs: event.target.value }))}
+              disabled={!canCreateSession}
             />
             <input
               className="pixel-input"
@@ -259,6 +292,7 @@ export default function SessionsPage() {
               inputMode="numeric"
               value={sessionDraft.scoreThem}
               onChange={(event) => setSessionDraft((prev) => ({ ...prev, scoreThem: event.target.value }))}
+              disabled={!canCreateSession}
             />
           </div>
 
@@ -267,6 +301,7 @@ export default function SessionsPage() {
             placeholder={t("sessions.setScoresPlaceholder")}
             value={sessionDraft.setScores}
             onChange={(event) => setSessionDraft((prev) => ({ ...prev, setScores: event.target.value }))}
+            disabled={!canCreateSession}
           />
 
           <input
@@ -274,8 +309,9 @@ export default function SessionsPage() {
             placeholder={t("sessions.notesPlaceholder")}
             value={sessionDraft.notes}
             onChange={(event) => setSessionDraft((prev) => ({ ...prev, notes: event.target.value }))}
+            disabled={!canCreateSession}
           />
-          <button className="pixel-btn sm:col-span-2" type="submit" disabled={selectedTeamId === null}>
+          <button className="pixel-btn sm:col-span-2" type="submit" disabled={selectedTeamId === null || !canCreateSession}>
             {t("sessions.create")}
           </button>
         </form>
@@ -302,7 +338,12 @@ export default function SessionsPage() {
                 <button
                   className="pixel-btn"
                   type="button"
+                  disabled={!canEditSession}
                   onClick={() => {
+                    if (!canEditSession) {
+                      deny();
+                      return;
+                    }
                     const nextNotes = window.prompt(t("sessions.promptUpdateNotes"), session.notes ?? "");
                     if (nextNotes === null || !session.id) return;
                     void handleSaveSession(session.id, { ...session, notes: nextNotes });
@@ -313,7 +354,12 @@ export default function SessionsPage() {
                 <button
                   className="pixel-btn"
                   type="button"
+                  disabled={!canEditSession}
                   onClick={() => {
+                    if (!canEditSession) {
+                      deny();
+                      return;
+                    }
                     if (!session.id) return;
                     const nextScore = window.prompt(
                       t("sessions.promptUpdateScore"),
@@ -347,7 +393,12 @@ export default function SessionsPage() {
                 <button
                   className="pixel-btn"
                   type="button"
+                  disabled={!canEditSession}
                   onClick={() => {
+                    if (!canEditSession) {
+                      deny();
+                      return;
+                    }
                     if (!session.id) return;
                     const nextSetScores = window.prompt(
                       t("sessions.promptUpdateSets"),
@@ -362,7 +413,12 @@ export default function SessionsPage() {
                 <button
                   className="pixel-btn"
                   type="button"
+                  disabled={!canDeleteSession}
                   onClick={async () => {
+                    if (!canDeleteSession) {
+                      deny();
+                      return;
+                    }
                     if (!session.id) return;
                     await deleteSession(session.id);
                     if (selectedTeamId !== null) {
@@ -390,6 +446,7 @@ export default function SessionsPage() {
             value={eventDraft.playerId}
             onChange={(event) => setEventDraft((prev) => ({ ...prev, playerId: event.target.value }))}
             required
+            disabled={!(editingEventId ? canEditEvent : canCreateEvent)}
           >
             <option value="">{t("sessions.selectPlayer")}</option>
             {players.map((player) => (
@@ -405,6 +462,7 @@ export default function SessionsPage() {
             onChange={(event) =>
               setEventDraft((prev) => ({ ...prev, type: event.target.value as StatEvent["type"] }))
             }
+            disabled={!(editingEventId ? canEditEvent : canCreateEvent)}
           >
             {EVENT_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -419,6 +477,7 @@ export default function SessionsPage() {
             onChange={(event) =>
               setEventDraft((prev) => ({ ...prev, outcome: event.target.value as StatEvent["outcome"] }))
             }
+            disabled={!(editingEventId ? canEditEvent : canCreateEvent)}
           >
             {EVENT_OUTCOMES.map((outcome) => (
               <option key={outcome} value={outcome}>
@@ -432,9 +491,14 @@ export default function SessionsPage() {
             placeholder={t("sessions.quickNote")}
             value={eventDraft.note}
             onChange={(event) => setEventDraft((prev) => ({ ...prev, note: event.target.value }))}
+            disabled={!(editingEventId ? canEditEvent : canCreateEvent)}
           />
 
-          <button className="pixel-btn sm:col-span-4" type="submit" disabled={selectedSessionId === null}>
+          <button
+            className="pixel-btn sm:col-span-4"
+            type="submit"
+            disabled={selectedSessionId === null || (editingEventId ? !canEditEvent : !canCreateEvent)}
+          >
             {editingEventId ? t("sessions.updateEvent") : t("sessions.addEvent")}
           </button>
         </form>
@@ -457,8 +521,12 @@ export default function SessionsPage() {
                   <button
                     type="button"
                     className="pixel-btn"
-                    disabled={selectedTeamId === null || selectedSessionId === null || !player.id}
+                    disabled={selectedTeamId === null || selectedSessionId === null || !player.id || !canCreateEvent}
                     onClick={async () => {
+                      if (!canCreateEvent) {
+                        deny();
+                        return;
+                      }
                       if (selectedTeamId === null || selectedSessionId === null || !player.id) return;
                       await createEvent({
                         teamId: selectedTeamId,
@@ -475,8 +543,12 @@ export default function SessionsPage() {
                   <button
                     type="button"
                     className="pixel-btn"
-                    disabled={selectedTeamId === null || selectedSessionId === null || !player.id}
+                    disabled={selectedTeamId === null || selectedSessionId === null || !player.id || !canCreateEvent}
                     onClick={async () => {
+                      if (!canCreateEvent) {
+                        deny();
+                        return;
+                      }
                       if (selectedTeamId === null || selectedSessionId === null || !player.id) return;
                       await createEvent({
                         teamId: selectedTeamId,
@@ -493,8 +565,12 @@ export default function SessionsPage() {
                   <button
                     type="button"
                     className="pixel-btn"
-                    disabled={selectedTeamId === null || selectedSessionId === null || !player.id}
+                    disabled={selectedTeamId === null || selectedSessionId === null || !player.id || !canCreateEvent}
                     onClick={async () => {
+                      if (!canCreateEvent) {
+                        deny();
+                        return;
+                      }
                       if (selectedTeamId === null || selectedSessionId === null || !player.id) return;
                       await createEvent({
                         teamId: selectedTeamId,
@@ -527,7 +603,12 @@ export default function SessionsPage() {
                   <button
                     type="button"
                     className="pixel-btn"
+                    disabled={!canEditEvent}
                     onClick={() => {
+                      if (!canEditEvent) {
+                        deny();
+                        return;
+                      }
                       if (!eventItem.id) return;
                       setEditingEventId(eventItem.id);
                       setEventDraft({
@@ -543,7 +624,12 @@ export default function SessionsPage() {
                   <button
                     type="button"
                     className="pixel-btn"
+                    disabled={!canDeleteEvent}
                     onClick={async () => {
+                      if (!canDeleteEvent) {
+                        deny();
+                        return;
+                      }
                       if (!eventItem.id || selectedSessionId === null) return;
                       await deleteEvent(eventItem.id);
                       const nextEvents = await listEventsForSession(selectedSessionId);
