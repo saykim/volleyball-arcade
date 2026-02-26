@@ -6,6 +6,7 @@ import { assignPlayerToSlot, BOARD_SLOT_COUNT, removePlayerFromSlot } from "@/li
 import { getBoardState, listPlayers, listSessions, listTeams, resetBoardState, upsertBoardState } from "@/lib/db";
 import type { Player, Session, Team } from "@/lib/domain";
 import { useI18n } from "@/lib/i18n";
+import { confirmBoardReset, getStoredRole, hasPermission } from "@/lib/permissions";
 
 const SESSION_KIND_LABEL_KEYS = {
   match: "sessionKind.match",
@@ -59,6 +60,8 @@ export default function BoardPage() {
 
   const assignedIds = useMemo(() => new Set(assignments.filter((value): value is number => typeof value === "number")), [assignments]);
   const unassignedPlayers = useMemo(() => players.filter((player) => (player.id ? !assignedIds.has(player.id) : true)), [assignedIds, players]);
+  const role = useMemo(() => getStoredRole(), []);
+  const canResetBoard = hasPermission(role, "board.reset");
 
   function findPlayer(playerId: number | null): Player | undefined {
     return players.find((player) => player.id === playerId);
@@ -153,9 +156,17 @@ export default function BoardPage() {
           <button
             className="pixel-btn"
             type="button"
-            disabled={!selectedTeamId || !selectedSessionId}
+            disabled={!selectedTeamId || !selectedSessionId || !canResetBoard}
             onClick={async () => {
               if (!selectedTeamId || !selectedSessionId) {
+                return;
+              }
+              const approved = confirmBoardReset({
+                role,
+                message: t("board.resetConfirm"),
+                confirm: (message) => window.confirm(message),
+              });
+              if (!approved) {
                 return;
               }
               await resetBoardState(selectedTeamId, selectedSessionId);
